@@ -86,7 +86,7 @@
 - (void)mixpanelSurveyQuestionViewController:(UIViewController *)questionViewController didReceiveAnswerProperties:(NSDictionary *)properties;
 @end
 
-@interface MixpanelSurveyQuestionViewController : UIViewController
+@interface MixpanelSurveyQuestionViewController : UIViewController <UITextFieldDelegate, UITableViewDelegate, UITableViewDataSource>
 @property(nonatomic,assign) id<MixpanelSurveyQuestionViewControllerDelegate> delegate;
 @property(nonatomic,retain) NSDictionary *question;
 -(instancetype)initWithQuestionDictionary:(NSDictionary *)question;
@@ -1263,9 +1263,37 @@ static Mixpanel *sharedInstance = nil;
     if ([self.mixpanel.delegate respondsToSelector:@selector(mixpanel:didReceivePermissionToConductSurvey:)]) {
 
         NSArray *questions = @[
-                               @{@"$question": @"Would you recommend this app to a friend?", @"$type": @"$boolean"},
-                               @{@"$question": @"What would you like ship most?"},
-                               @{@"$question": @"If you'd like a solutions architect to give you a call, please enter your phone number.", @"$type": @"$number"}
+                               @{
+                                   @"$type": @"$boolean",
+                                   @"$property": @"Would Recommend",
+                                   @"$question": @"Would you recommend this app to a friend?"
+                                },
+                               @{
+                                   @"$type": @"$string",
+                                   @"$property": @"Suggestions",
+                                   @"$question": @"What suggestions do you have for us?"
+                                },
+                               @{
+                                   @"$type": @"$string",
+                                   @"$property": @"Most Wanted Feature",
+                                   @"$question": @"What would you like us to focus on next?",
+                                   @"$choices": @[
+                                           @"Web-scale big data",
+                                           @"Old Streams",
+                                           @"One-click pivot to gamified teen hook-up app"
+                                        ]
+                                },
+                               @{
+                                   @"$type": @"$string",
+                                   @"$property": @"$phone",
+                                   @"$input": @"phone",
+                                   @"$question": @"Would you like a solutions architect to give you a call? If so, please enter your phone number."
+                                },
+                               @{
+                                   @"$type": @"$date",
+                                   @"$property": @"Birthday",
+                                   @"$question": @"When were you born?"
+                                   }
                                ];
         NSMutableArray *questionViewControllers = [NSMutableArray array];
         for (NSDictionary *question in questions) {
@@ -1294,6 +1322,8 @@ static Mixpanel *sharedInstance = nil;
             [self initBoolean];
         } else if ([type isEqualToString:@"$number"]) {
             [self initNumber];
+        } else if ([type isEqualToString:@"$date"]) {
+            [self initDate];
         } else {
             [self initString];
         }
@@ -1306,10 +1336,10 @@ static Mixpanel *sharedInstance = nil;
 }
 - (void)initQuestionLabel
 {
-    UILabel *label = [[[UILabel alloc] initWithFrame:CGRectMake(10.0, 10.0, self.view.bounds.size.width - 20.0, 100.0)] autorelease];
+    UILabel *label = [[[UILabel alloc] initWithFrame:CGRectMake(10.0, 10.0, self.view.bounds.size.width - 20.0, 70.0)] autorelease];
     label.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     label.textColor = [UIColor darkGrayColor];
-    label.font = [UIFont boldSystemFontOfSize:20.0];
+    label.font = [UIFont systemFontOfSize:20.0];
     label.textAlignment = UITextAlignmentCenter;
     label.text = [self.question objectForKey:@"$question"];
     label.lineBreakMode = UILineBreakModeWordWrap;
@@ -1324,10 +1354,14 @@ static Mixpanel *sharedInstance = nil;
     container.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleLeftMargin;
     UIButton *yes = [UIButton buttonWithType:UIButtonTypeRoundedRect];
     [yes setTitle:@"Yes" forState:UIControlStateNormal];
+    yes.tag = 1;
     yes.frame = CGRectMake(0.0, 0.0, 100.0, 40.0);
+    [yes addTarget:self action:@selector(action:) forControlEvents:UIControlEventTouchUpInside];
     UIButton *no = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    no.tag = 0;
     [no setTitle:@"No" forState:UIControlStateNormal];
     no.frame = CGRectMake(120.0, 0.0, 100.0, 40.0);
+    [no addTarget:self action:@selector(action:) forControlEvents:UIControlEventTouchUpInside];
     [container addSubview:yes];
     [container addSubview:no];
     container.center = CGPointMake(self.view.bounds.size.width / 2, 170.0);
@@ -1336,7 +1370,6 @@ static Mixpanel *sharedInstance = nil;
 
 - (void)initNumber
 {
-    NSLog(@"1");
     UITextField *field = [[[UITextField alloc] initWithFrame:CGRectMake(0.0, 220.0, 200.0, 40.0)] autorelease];
     field.borderStyle = UITextBorderStyleRoundedRect;
     [self.view addSubview:field];
@@ -1344,7 +1377,113 @@ static Mixpanel *sharedInstance = nil;
 
 - (void)initString
 {
+    if ([self.question objectForKey:@"$choices"] == NULL) {
+        NSLog(@"width: %f", self.view.frame.size.width);
+        UITextField *field = [[[UITextField alloc] initWithFrame:CGRectMake(10.0, 90.0, self.view.frame.size.width - 20.0, 100.0)] autorelease];
+        field.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        field.font = [UIFont systemFontOfSize:16.0];
+        field.delegate = self;
+        field.enablesReturnKeyAutomatically = YES;
+        field.returnKeyType = UIReturnKeyDone;
+        field.placeholder = @"Start typing...";
 
+        [self.view addSubview:field];
+        [field becomeFirstResponder];
+    } else {
+        UITableView *tableView = [[UITableView alloc] initWithFrame:[[UIScreen mainScreen] applicationFrame] style:UITableViewStyleGrouped];
+        tableView.autoresizingMask = UIViewAutoresizingFlexibleHeight|UIViewAutoresizingFlexibleWidth;
+        tableView.delegate = self;
+        tableView.dataSource = self;
+        [tableView reloadData];
+        self.view = tableView;
+    }
+}
+
+- (void)initDate
+{
+    CGRect frame = CGRectMake(0.0, 70.0, self.view.bounds.size.width, self.view.bounds.size.height - 70.0);
+    UIDatePicker *picker = [[[UIDatePicker alloc] initWithFrame:frame] autorelease];
+    picker.datePickerMode = UIDatePickerModeDate;
+    picker.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+    [self.view addSubview:picker];
+}
+
+- (void)booleanAnswer:(id)sender
+{
+    NSLog(@"boolean answer: %@", sender);
+    NSDictionary *answer = NULL;
+    if ([sender isKindOfClass:[UIButton class]]) {
+        UIButton *button = (UIButton *)sender;
+        if (button.tag == 1) {
+            answer = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES]
+                                                 forKey:[self.question objectForKey:@"$property"]];
+        } else if (button.tag == 0) {
+            answer = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:NO]
+                                                 forKey:[self.question objectForKey:@"$property"]];
+        } else {
+            NSLog(@"%@ unexpected tag value for boolean question: %d", self, button.tag);
+        }
+    } else {
+        NSLog(@"%@ unexpected sender for boolean question: %@", self, sender);
+    }
+    if (answer != NULL) {
+        [self.delegate mixpanelSurveyQuestionViewController:self didReceiveAnswerProperties:answer];
+    }
+}
+
+- (void)stringAnswer:(id)sender
+{
+    NSLog(@"string answer: %@", sender);
+    NSDictionary *answer = NULL;
+    if ([sender isKindOfClass:[UITextField class]]) {
+        UITextField *field = (UITextField *)sender;
+        NSString *string = field.text;
+        answer = [NSDictionary dictionaryWithObject:string
+                                                 forKey:[self.question objectForKey:@"$property"]];
+    } else {
+        NSLog(@"%@ unexpected sender for string question: %@", self, sender);
+    }
+    if (answer != NULL) {
+        [self.delegate mixpanelSurveyQuestionViewController:self didReceiveAnswerProperties:answer];
+    }
+}
+
+- (void)action:(id)sender
+{
+    NSString *type = [self.question objectForKey:@"$type"];
+    if ([type isEqualToString:@"$boolean"]) {
+        [self booleanAnswer:sender];
+    } else if ([type isEqualToString:@"$string"]) {
+        [self stringAnswer:sender];
+    }
+}
+
+-(BOOL)textFieldShouldReturn:(UITextField *)textField
+{
+    [self action:textField];
+    return YES;
+}
+
+#pragma mark - UITableViewControllerDelegate methods
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return [[self.question objectForKey:@"$choices"] count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSArray *choices = [self.question objectForKey:@"$choices"];
+    static NSString *identifier = @"MixpanelCellIdentifier";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:identifier];
+    if (cell == nil) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:identifier];
+    }
+    NSString *answer = [choices objectAtIndex:indexPath.row];
+    cell.textLabel.text = answer;
+    return cell;
 }
 
 @end
@@ -1380,11 +1519,7 @@ static Mixpanel *sharedInstance = nil;
             controller.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(dismiss)];
         }
         if (self.questionViewControllers.count > 1) {
-            if (controller == self.questionViewControllers.lastObject) {
-                controller.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(dismiss)];
-            } else {
-                controller.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Skip" style:UIBarButtonItemStylePlain target:self action:@selector(next)];
-            }
+            controller.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Skip" style:UIBarButtonItemStylePlain target:self action:@selector(next)];
         }
     }
 }
@@ -1443,9 +1578,14 @@ static Mixpanel *sharedInstance = nil;
 
 - (void)next
 {
-    UIViewController *next = [self.questionViewControllers objectAtIndex:self.viewControllers.count];
-    [self pushViewController:next animated:YES];
-    [self updateProgress];
+    if (self.viewControllers.count == self.questionViewControllers.count) {
+        // if we're on the last step, we're done, so dismiss the survey
+        [self dismiss];
+    } else {
+        UIViewController *next = [self.questionViewControllers objectAtIndex:self.viewControllers.count];
+        [self pushViewController:next animated:YES];
+        [self updateProgress];
+    }
 }
 
 - (void)updateProgress
