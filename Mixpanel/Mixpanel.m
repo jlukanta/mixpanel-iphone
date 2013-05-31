@@ -1262,41 +1262,77 @@ static Mixpanel *sharedInstance = nil;
 {
     if ([self.mixpanel.delegate respondsToSelector:@selector(mixpanel:didReceivePermissionToConductSurvey:)]) {
 
-        NSArray *questions = @[
-                               @{
-                                   @"$type": @"$boolean",
-                                   @"$property": @"Would Recommend",
-                                   @"$question": @"Would you recommend this app to a friend?"
-                                },
-                               @{
-                                   @"$type": @"$string",
-                                   @"$property": @"Suggestions",
-                                   @"$question": @"What suggestions do you have for us?"
-                                },
-                               @{
-                                   @"$type": @"$string",
-                                   @"$property": @"Most Wanted Feature",
-                                   @"$question": @"What would you like us to focus on next?",
-                                   @"$choices": @[
-                                           @"Web-scale big data",
-                                           @"Old Streams",
-                                           @"One-click pivot to gamified teen hook-up app"
-                                        ]
-                                },
-                               @{
-                                   @"$type": @"$string",
-                                   @"$property": @"$phone",
-                                   @"$input": @"phone",
-                                   @"$question": @"Would you like a solutions architect to give you a call? If so, please enter your phone number."
-                                },
-                               @{
-                                   @"$type": @"$date",
-                                   @"$property": @"Birthday",
-                                   @"$question": @"When were you born?"
-                                   }
-                               ];
+        NSDictionary *survey = @{
+            @"version": @0,
+            @"questions": @[
+               @{
+                   @"prompt": @"What, exactly, would you say you \"do\" here?",
+                   @"property": @"Role",
+                   @"type": @"$string"
+                },
+               @{
+                   @"prompt": @"If we discontinued our service, how much would you care?",
+                   @"property": @"Care",
+                   @"type": @"$string",
+                   @"choices": @[
+                        @"A lot"
+                        @"A little",
+                        @"Not at all",
+                        @"I'd prefer you didn't exist"
+                    ]
+                },
+               @{
+                   @"prompt": @"How many? Please be specific.",
+                   @"property": @"Count",
+                   @"type": @"$number"
+                },
+               @{
+                   @"prompt": @"Which do you prefer?",
+                   @"property": @"Preference",
+                   @"type": @"$number",
+                   @"choices": @[
+                        @3,
+                        @8,
+                        @893.23423,
+                        @2.4
+                    ]
+                },
+               @{
+                   @"prompt": @"Would you recommend this app to a friend?",
+                   @"property": @"Would Recommend",
+                   @"type": @"$boolean"
+                },
+               @{
+                   @"prompt": @"What's your birthday?",
+                   @"property": @"Birthday",
+                   @"type": @"$date"
+                },
+               @{
+                   @"prompt": @"What would you like us to focus on next? Select all that apply.",
+                   @"property": @"Wanted Features",
+                   @"type": @"$list",
+                   @"choices": @[
+                       @"Web-scale big data",
+                       @"Old Streams",
+                       @"One-click pivot to gamified teen hook-up app"
+                    ]
+                },
+               @{
+                   @"prompt": @"Can I call you?",
+                   @"property": @"$phone",
+                   @"type": @"$string",
+                   @"mode": @"$phone"
+                },
+               @{
+                   @"prompt": @"Email then?",
+                   @"property": @"$email",
+                   @"type": @"$string",
+                   @"mode": @"$email"
+                },
+            ]
+        };
         NSMutableArray *questionViewControllers = [NSMutableArray array];
-        for (NSDictionary *question in questions) {
+        for (NSDictionary *question in [survey objectForKey:@"questions"]) {
             MixpanelSurveyQuestionViewController *controller = [[[MixpanelSurveyQuestionViewController alloc] initWithQuestionDictionary:question] autorelease];
             ;
             [questionViewControllers addObject:controller];
@@ -1317,7 +1353,7 @@ static Mixpanel *sharedInstance = nil;
         self.question = question;
         self.view.backgroundColor = [UIColor whiteColor];
         [self initQuestionLabel];
-        NSString *type = [question objectForKey:@"$type"];
+        NSString *type = [question objectForKey:@"type"];
         if ([type isEqualToString:@"$boolean"]) {
             [self initBoolean];
         } else if ([type isEqualToString:@"$number"]) {
@@ -1341,7 +1377,7 @@ static Mixpanel *sharedInstance = nil;
     label.textColor = [UIColor darkGrayColor];
     label.font = [UIFont systemFontOfSize:20.0];
     label.textAlignment = UITextAlignmentCenter;
-    label.text = [self.question objectForKey:@"$question"];
+    label.text = [self.question objectForKey:@"prompt"];
     label.lineBreakMode = UILineBreakModeWordWrap;
     label.adjustsFontSizeToFitWidth = YES;
     label.numberOfLines = 5;
@@ -1377,7 +1413,7 @@ static Mixpanel *sharedInstance = nil;
 
 - (void)initString
 {
-    if ([self.question objectForKey:@"$choices"] == NULL) {
+    if ([self.question objectForKey:@"choices"] == NULL) {
         NSLog(@"width: %f", self.view.frame.size.width);
         UITextField *field = [[[UITextField alloc] initWithFrame:CGRectMake(10.0, 90.0, self.view.frame.size.width - 20.0, 100.0)] autorelease];
         field.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -1416,10 +1452,10 @@ static Mixpanel *sharedInstance = nil;
         UIButton *button = (UIButton *)sender;
         if (button.tag == 1) {
             answer = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES]
-                                                 forKey:[self.question objectForKey:@"$property"]];
+                                                 forKey:[self.question objectForKey:@"property"]];
         } else if (button.tag == 0) {
             answer = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:NO]
-                                                 forKey:[self.question objectForKey:@"$property"]];
+                                                 forKey:[self.question objectForKey:@"property"]];
         } else {
             NSLog(@"%@ unexpected tag value for boolean question: %d", self, button.tag);
         }
@@ -1439,7 +1475,7 @@ static Mixpanel *sharedInstance = nil;
         UITextField *field = (UITextField *)sender;
         NSString *string = field.text;
         answer = [NSDictionary dictionaryWithObject:string
-                                                 forKey:[self.question objectForKey:@"$property"]];
+                                                 forKey:[self.question objectForKey:@"property"]];
     } else {
         NSLog(@"%@ unexpected sender for string question: %@", self, sender);
     }
@@ -1450,7 +1486,7 @@ static Mixpanel *sharedInstance = nil;
 
 - (void)action:(id)sender
 {
-    NSString *type = [self.question objectForKey:@"$type"];
+    NSString *type = [self.question objectForKey:@"type"];
     if ([type isEqualToString:@"$boolean"]) {
         [self booleanAnswer:sender];
     } else if ([type isEqualToString:@"$string"]) {
@@ -1471,11 +1507,11 @@ static Mixpanel *sharedInstance = nil;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return [[self.question objectForKey:@"$choices"] count];
+    return [[self.question objectForKey:@"choices"] count];
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    NSArray *choices = [self.question objectForKey:@"$choices"];
+    NSArray *choices = [self.question objectForKey:@"choices"];
     static NSString *identifier = @"MixpanelCellIdentifier";
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:identifier];
     if (cell == nil) {
