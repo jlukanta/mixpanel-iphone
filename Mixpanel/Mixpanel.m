@@ -90,13 +90,8 @@
 @property(nonatomic,assign) id<MixpanelSurveyQuestionViewControllerDelegate> delegate;
 @property(nonatomic,retain) NSString *prompt;
 @property(nonatomic,retain) NSString *property;
-@property(nonatomic,retain) NSString *type;
 @property(nonatomic,retain) NSArray *choices;
-@property(nonatomic,retain) UITextField *textField;
-@property(nonatomic,retain) UIDatePicker *datePicker;
-@property(nonatomic,retain) UIButton *doneButton;
-@property(nonatomic,retain) UIButton *yesButton;
-@property(nonatomic,retain) UIButton *noButton;
+@property(nonatomic,retain) UITableView *tableView;
 -(instancetype)initWithQuestionDictionary:(NSDictionary *)question;
 @end
 
@@ -1274,69 +1269,43 @@ static Mixpanel *sharedInstance = nil;
             @"version": @0,
             @"questions": @[
                @{
-                   @"prompt": @"What, exactly, would you say you \"do\" here sdkljfsdkl fjjklsdj fklsdjfkl dsjfklsd fkldjskl fslkdfj sdklfj dlskfj dlskjfdsklfj dklsfj dklsfj dklsjfkls;d jfldksj fadsjf sdfkljsdkl fjdklsjf dlsjf dklsjf sdkljf klsd fkldsjf lsdjf ?",
-                   @"property": @"Role",
-                   @"type": @"$string"
-                },
-               @{
                    @"prompt": @"If we discontinued our service, how much would you care?",
-                   @"property": @"Care",
-                   @"type": @"$string",
+                   @"property": @"Engagement",
                    @"choices": @[
                         @"A lot",
                         @"A little",
                         @"Not at all",
-                        @"I'd prefer you didn't exist"
+                        @"I'd prefer you didn't exist",
+                        [NSNull null]
                     ]
                 },
                @{
-                   @"prompt": @"How many? Please be specific.",
-                   @"property": @"Count",
-                   @"type": @"$number"
-                },
-               @{
-                   @"prompt": @"Which do you prefer?",
-                   @"property": @"Preference",
-                   @"type": @"$number",
+                   @"prompt": @"How many employees does your company have?",
+                   @"property": @"Company Size",
                    @"choices": @[
-                        @3,
-                        @8,
-                        @893.23423,
-                        @2.4
+                        @1,
+                        @1.5,
+                        @100,
+                        @1000,
+                        @10000
                     ]
                 },
                @{
                    @"prompt": @"Would you recommend this app to a friend?",
                    @"property": @"Promoter",
-                   @"type": @"$boolean"
-                },
-               @{
-                   @"prompt": @"What's your birthday?",
-                   @"property": @"Birthday",
-                   @"type": @"$date"
-                },
-               @{
-                   @"prompt": @"What would you like us to focus on next? Select all that apply.",
-                   @"property": @"Wanted Features",
-                   @"type": @"$list",
                    @"choices": @[
-                       @"Web-scale big data",
-                       @"Old streams",
-                       @"One-click gamification"
+                        @YES,
+                        @NO,
                     ]
                 },
                @{
-                   @"prompt": @"Can I call you?",
-                   @"property": @"$phone",
-                   @"type": @"$string",
-                   @"mode": @"$phone"
-                },
-               @{
-                   @"prompt": @"Email then?",
-                   @"property": @"$email",
-                   @"type": @"$string",
-                   @"mode": @"$email"
-                },
+                   @"prompt": @"Is this question too long or just long enough to be effective in getting to the exact point we were trying to get across when engaging you in as efficient a manner as possible?",
+                   @"property": @"Promoter",
+                   @"choices": @[
+                        @YES,
+                        @NO,
+                    ]
+                }
             ]
         };
         NSMutableArray *questionViewControllers = [NSMutableArray array];
@@ -1369,175 +1338,74 @@ static Mixpanel *sharedInstance = nil;
             NSLog(@"%@ survey question %@ missing property", self, question);
             return nil;
         }
-        self.type = [question objectForKey:@"type"];
-        if (self.type == nil) {
-            self.type = @"$string";
-        }
         self.choices = [question objectForKey:@"choices"];
         if (self.choices != nil && ![self.choices isKindOfClass:[NSArray class]]) {
             NSLog(@"%@ survey choices must be nil or an array %@", self, question);
             return nil;
         }
-        [self initPrompt];
-        [self initAnswer];
+        self.view.backgroundColor = [UIColor colorWithRed:217/255.0f green:217/255.0f blue:217/255.0f alpha:1.0f];
+        CGFloat top = 10.0;
+        UILabel *label = [[[UILabel alloc] initWithFrame:CGRectMake(10.0, top, self.view.bounds.size.width - 20.0, 50.0)] autorelease];
+        label.text = self.prompt;
+        label.backgroundColor = [UIColor clearColor];
+        label.numberOfLines = 0;
+        label.textAlignment = UITextAlignmentCenter;
+
+        label.textColor = [UIColor darkTextColor];
+        CGFloat heightToFit = [label.text sizeWithFont:label.font constrainedToSize:CGSizeMake(label.frame.size.width, UINTMAX_MAX) lineBreakMode:label.lineBreakMode].height;
+        if (heightToFit > 50.0) {
+            label.frame = CGRectMake(label.frame.origin.x, label.frame.origin.y, label.frame.size.width, heightToFit);
+        }
+        top += label.frame.size.height + 10.0;
+        label.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+        [self.view addSubview:label];
+        UITableView *tableView = [[UITableView alloc] initWithFrame:CGRectMake(0.0, top, self.view.bounds.size.width, self.view.bounds.size.height - top) style:UITableViewStylePlain];
+        tableView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+        tableView.delegate = self;
+        tableView.dataSource = self;
+        tableView.allowsSelection = YES;
+        [tableView reloadData];
+        self.tableView = tableView;
+        [self.view addSubview:tableView];
+        // todo: flash scrollbars
     }
     return self;
 }
 
-- (void)initPrompt
+- (void)viewDidLoad
 {
-    UILabel *label = [[[UILabel alloc] initWithFrame:CGRectMake(10.0, 10.0, self.view.bounds.size.width - 20.0, 50.0)] autorelease];
-    label.backgroundColor = [UIColor greenColor];
-    label.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    label.textColor = [UIColor darkGrayColor];
-    label.textAlignment = UITextAlignmentCenter;
-    label.text = self.prompt;
-    label.lineBreakMode = UILineBreakModeWordWrap;
-    label.numberOfLines = 3;
-    [self.view addSubview:label];
+    [super viewDidLoad];
 }
 
-- (void)initAnswer
+- (void)viewDidAppear:(BOOL)animated
 {
-    if ([self.type isEqualToString:@"$string"]) {
-        [self initString];
-    } else if ([self.type isEqualToString:@"$number"]) {
-        [self initNumber];
-    } else if ([self.type isEqualToString:@"$boolean"]) {
-        [self initBoolean];
-    } else if ([self.type isEqualToString:@"$date"]) {
-        [self initDate];
-    } else if ([self.type isEqualToString:@"$list"]) {
-        [self initList];
-    } else {
-        NSLog(@"%@ unknown question type: %@", self, self.type);
-    }
+    [super viewDidAppear:animated];
+    [self.tableView flashScrollIndicators];
 
 }
 
-- (void)initString
+- (NSString *)labelForValue:(id)val
 {
-    if (self.choices == nil) {
-        NSLog(@"width: %f", self.view.frame.size.width);
-        UITextField *field = [[[UITextField alloc] initWithFrame:CGRectMake(10.0, 70.0, self.view.frame.size.width - 20.0, 25.0)] autorelease];
-        field.backgroundColor = [UIColor redColor];
-        field.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        field.font = [UIFont systemFontOfSize:17.0];
-        field.delegate = self;
-        field.enablesReturnKeyAutomatically = YES;
-        field.returnKeyType = UIReturnKeyDone;
-        field.placeholder = @"Start typing...";
-        [self.view addSubview:field];
-        [field becomeFirstResponder];
-    } else {
-        [self initListWithMultipleSelection:NO];
-    }
-}
-
-- (void)initNumber
-{
-    UITextField *field = [[[UITextField alloc] initWithFrame:CGRectMake(0.0, 220.0, 200.0, 40.0)] autorelease];
-    field.borderStyle = UITextBorderStyleRoundedRect;
-    [self.view addSubview:field];
-}
-
-- (void)initBoolean
-{
-    UIView *container = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, 220.0, 40.0)];
-    container.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleLeftMargin;
-    UIButton *yes = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    [yes setTitle:@"Yes" forState:UIControlStateNormal];
-    yes.tag = 1;
-    yes.frame = CGRectMake(0.0, 0.0, 100.0, 40.0);
-    [yes addTarget:self action:@selector(action:) forControlEvents:UIControlEventTouchUpInside];
-    UIButton *no = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    no.tag = 0;
-    [no setTitle:@"No" forState:UIControlStateNormal];
-    no.frame = CGRectMake(120.0, 0.0, 100.0, 40.0);
-    [no addTarget:self action:@selector(action:) forControlEvents:UIControlEventTouchUpInside];
-    [container addSubview:yes];
-    [container addSubview:no];
-    container.center = CGPointMake(self.view.bounds.size.width / 2, 170.0);
-    [self.view addSubview:container];
-}
-
-- (void)initDate
-{
-    CGRect frame = CGRectMake(0.0, 70.0, self.view.bounds.size.width, self.view.bounds.size.height - 70.0);
-    UIDatePicker *picker = [[[UIDatePicker alloc] initWithFrame:frame] autorelease];
-    picker.datePickerMode = UIDatePickerModeDate;
-    picker.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
-    [self.view addSubview:picker];
-}
-
-- (void)initList
-{
-    [self initListWithMultipleSelection:YES];
-}
-
-- (void)initListWithMultipleSelection:(BOOL)multipleSelection
-{
-    UITableView *tableView = [[UITableView alloc] initWithFrame:self.view.frame style:UITableViewStylePlain];
-    tableView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
-    tableView.delegate = self;
-    tableView.dataSource = self;
-    tableView.allowsSelection = YES;
-    tableView.allowsMultipleSelection = multipleSelection;
-    tableView.backgroundColor = [UIColor yellowColor];
-    [tableView reloadData];
-    [self.view addSubview:tableView];
-}
-
-- (void)booleanAnswer:(id)sender
-{
-    NSLog(@"boolean answer: %@", sender);
-    NSDictionary *answer = NULL;
-    if ([sender isKindOfClass:[UIButton class]]) {
-        UIButton *button = (UIButton *)sender;
-        if (button.tag == 1) {
-            answer = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:self.property];
-        } else if (button.tag == 0) {
-            answer = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:NO] forKey:self.property];
+    NSString *label;
+    if ([val isKindOfClass:[NSString class]]) {
+        label = val;
+    } else if ([val isKindOfClass:[NSNumber class]]) {
+        int i = [val intValue];
+        if (CFNumberGetType((CFNumberRef)val) == kCFNumberCharType && (i == 0 || i == 1)) {
+            label = i ? @"Yes" : @"No";
         } else {
-            NSLog(@"%@ unexpected tag value for boolean question: %d", self, button.tag);
+            NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+            [formatter setNumberStyle:NSNumberFormatterDecimalStyle];
+            label = [formatter stringFromNumber:val];
+            [formatter release];
         }
+    } else if ([val isKindOfClass:[NSNull class]]) {
+        label = @"None";
     } else {
-        NSLog(@"%@ unexpected sender for boolean question: %@", self, sender);
+        NSLog(@"%@ unexpected value for survey choice: %@", self, val);
+        label = [val description];
     }
-    if (answer != NULL) {
-        [self.delegate mixpanelSurveyQuestionViewController:self didReceiveAnswerProperties:answer];
-    }
-}
-
-- (void)stringAnswer:(id)sender
-{
-    NSLog(@"string answer: %@", sender);
-    NSDictionary *answer = NULL;
-    if ([sender isKindOfClass:[UITextField class]]) {
-        UITextField *field = (UITextField *)sender;
-        NSString *string = field.text;
-        answer = [NSDictionary dictionaryWithObject:string forKey:self.property];
-    } else {
-        NSLog(@"%@ unexpected sender for string question: %@", self, sender);
-    }
-    if (answer != NULL) {
-        [self.delegate mixpanelSurveyQuestionViewController:self didReceiveAnswerProperties:answer];
-    }
-}
-
-- (void)action:(id)sender
-{
-    if ([self.type isEqualToString:@"$boolean"]) {
-        [self booleanAnswer:sender];
-    } else if ([self.type isEqualToString:@"$string"]) {
-        [self stringAnswer:sender];
-    }
-}
-
--(BOOL)textFieldShouldReturn:(UITextField *)textField
-{
-    [self action:textField];
-    return YES;
+    return label;
 }
 
 #pragma mark - UITableViewControllerDelegate methods
@@ -1556,8 +1424,7 @@ static Mixpanel *sharedInstance = nil;
     if (cell == nil) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:identifier];
     }
-    NSString *answer = [self.choices objectAtIndex:indexPath.row];
-    cell.textLabel.text = answer;
+    cell.textLabel.text = [self labelForValue:[self.choices objectAtIndex:indexPath.row]];
     return cell;
 }
 
@@ -1565,10 +1432,8 @@ static Mixpanel *sharedInstance = nil;
 {
     UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
     cell.accessoryType = UITableViewCellAccessoryCheckmark;
-    if (![self.type isEqualToString:@"$list"]) {
-        NSDictionary *answer = [NSDictionary dictionaryWithObject:[self.choices objectAtIndex:indexPath.row] forKey:self.property];
-        [self.delegate mixpanelSurveyQuestionViewController:self didReceiveAnswerProperties:answer];
-    }
+    NSDictionary *answer = [NSDictionary dictionaryWithObject:[self.choices objectAtIndex:indexPath.row] forKey:self.property];
+    [self.delegate mixpanelSurveyQuestionViewController:self didReceiveAnswerProperties:answer];
 }
 
 -(void)tableView:(UITableView *)tableView didDeselectRowAtIndexPath:(NSIndexPath *)indexPath
