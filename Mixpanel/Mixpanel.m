@@ -570,23 +570,57 @@ static Mixpanel *sharedInstance = nil;
 {
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 40000
     @synchronized(self) {
+        
+        static const NSUInteger kDidEnterBackgroundTimeLimit = 4.5;
+        
+        NSDate* maxDate = [NSDate dateWithTimeIntervalSinceNow:kDidEnterBackgroundTimeLimit];
+
         if ([[UIApplication sharedApplication] respondsToSelector:@selector(beginBackgroundTaskWithExpirationHandler:)] &&
             [[UIApplication sharedApplication] respondsToSelector:@selector(endBackgroundTask:)]) {
 
             self.taskId = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^{
                 MixpanelDebug(@"%@ flush background task %u cut short", self, self.taskId);
-                [self cancelFlush];
-                [[UIApplication sharedApplication] endBackgroundTask:self.taskId];
-                self.taskId = UIBackgroundTaskInvalid;
+                [self cancelBackgroundTaskWithUpdateUI:NO];
             }];
 
             MixpanelDebug(@"%@ starting flush background task %u", self, self.taskId);
             [self flush];
+            
+            while (self.taskId != UIBackgroundTaskInvalid)
+            {
+                [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]];
+                
+                NSDate* currentDate = [NSDate date];
+                if ([currentDate earlierDate:maxDate] == maxDate)
+                {
+                    if (self.taskId != UIBackgroundTaskInvalid)
+                    {
+                        [self cancelBackgroundTaskWithUpdateUI:NO];
+                        break;
+                    }
+                }
+            }
 
             // connection callbacks end this task by calling endBackgroundTaskIfComplete
         }
     }
 #endif
+}
+
+- (void)cancelBackgroundTaskWithUpdateUI:(BOOL)updateUI
+{
+    if (&UIBackgroundTaskInvalid) {
+        if (self.taskId != UIBackgroundTaskInvalid) {
+            [[UIApplication sharedApplication] endBackgroundTask:self.taskId];
+        }
+        self.taskId = UIBackgroundTaskInvalid;
+    }
+    [self cancelFlush];
+    
+    if (updateUI)
+    {
+        [self updateNetworkActivityIndicator];
+    }
 }
 
 - (void)flushEvents
@@ -874,15 +908,7 @@ static Mixpanel *sharedInstance = nil;
     MixpanelDebug(@"%@ will enter foreground", self);
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 40000
     @synchronized(self) {
-
-        if (&UIBackgroundTaskInvalid) {
-            if (self.taskId != UIBackgroundTaskInvalid) {
-                [[UIApplication sharedApplication] endBackgroundTask:self.taskId];
-            }
-            self.taskId = UIBackgroundTaskInvalid;
-        }
-        [self cancelFlush];
-        [self updateNetworkActivityIndicator];
+        [self cancelBackgroundTaskWithUpdateUI:YES];
     }
 #endif
 }
