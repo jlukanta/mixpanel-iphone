@@ -19,7 +19,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
-@class    MixpanelPeople;
+@class MixpanelPeople;
 @protocol MixpanelDelegate;
 
 /*!
@@ -61,7 +61,7 @@
  @discussion
  See the documentation for MixpanelDelegate below for more information.
  */
-@property(nonatomic,readonly,retain) MixpanelPeople *people;
+@property(nonatomic, readonly, retain) MixpanelPeople *people;
 
 /*!
  @property
@@ -83,7 +83,7 @@
  @abstract
  Current user's name in Mixpanel Streams.
  */
-@property(nonatomic,copy) NSString *nameTag;
+@property(nonatomic, copy) NSString *nameTag;
 
 /*!
  @property
@@ -95,7 +95,7 @@
  Useful if you need to proxy Mixpanel requests. Defaults to
  https://api.mixpanel.com.
  */
-@property(nonatomic,copy) NSString *serverURL;
+@property(nonatomic, copy) NSString *serverURL;
 
 /*!
  @property
@@ -106,7 +106,7 @@
  @discussion
  Setting a flush interval of 0 will turn off the flush timer.
  */
-@property(nonatomic,assign) NSUInteger flushInterval;
+@property(nonatomic, assign) NSUInteger flushInterval;
 
 /*!
  @property
@@ -119,7 +119,7 @@
  Defaults to YES. Only affects apps targeted at iOS 4.0, when background 
  task support was introduced, and later.
  */
-@property(nonatomic,assign) BOOL flushOnBackground;
+@property(nonatomic, assign) BOOL flushOnBackground;
 
 /*!
  @property
@@ -131,7 +131,7 @@
  @discussion
  Defaults to YES.
  */
-@property(nonatomic,assign) BOOL showNetworkActivityIndicator;
+@property(nonatomic, assign) BOOL showNetworkActivityIndicator;
 
 /*!
  @property
@@ -144,7 +144,7 @@
  Using a delegate is optional. See the documentation for MixpanelDelegate 
  below for more information.
  */
-@property(nonatomic,assign) id<MixpanelDelegate> delegate; // allows fine grain control over uploading (optional)
+@property(nonatomic, assign) id <MixpanelDelegate> delegate; // allows fine grain control over uploading (optional)
 
 /*!
  @method
@@ -201,6 +201,40 @@
  */
 - (id)initWithToken:(NSString *)apiToken andFlushInterval:(NSUInteger)flushInterval;
 
+/*
+@method
+
+@abstract
+Create an alias. Multiple aliases can map to the same original ID, but not vice-versa.
+
+@discussion
+Uses the Distinct Id for the original ID
+
+@param alias        A unique identifier that you want to use for this user in the future.
+*/
+- (void)alias:(NSString *)alias;
+
+
+/*
+@method
+
+@abstract
+Create an alias. Multiple aliases can map to the same original ID, but not vice-versa.
+
+@discussion
+Aliases can also be chained - the following is a valid scenario:
+[[Mixpanel sharedInstance] alias:@"new_id" original:@"existing_id"];
+...
+[[Mixpanel sharedInstance] alias:@"newer_id" original:@"new_id"];
+
+If the original ID is not passed in, we will use the current distinct_id - probably the auto-generated GUID.
+
+@param alias        A unique identifier that you want to use for this user in the future.
+@param original     The current identifier being used for this user.
+
+*/
+- (void)alias:(NSString *)alias original:(NSString *)original;
+
 /*!
  @property
 
@@ -255,6 +289,46 @@
  @param properties      properties dictionary
  */
 - (void)track:(NSString *)event properties:(NSDictionary *)properties;
+
+/*!
+ @method
+
+ @abstract
+ Disable all tracking events on the Mixpanel object.
+
+ @discussion
+ This function doesn't stop regular mixpanel functions from firing such as register and name_tag.
+
+ */
+- (void)disable;
+
+/*!
+ @method
+
+ @abstract
+ Disable specific events on the Mixpanel object.
+
+ @discussion
+ Disables tracking of all event names in the passed in <code>NSArray</code>.
+ Other events will continue to be tracked.
+
+ Note: this function doesn't stop regular mixpanel functions from firing such as register and name_tag.
+
+ @param events      array of events to disable
+ */
+- (void)disable:(NSArray *)events;
+
+/*!
+ @method
+
+ @abstract
+ Enable tracking events on the Mixpanel object.
+
+ @discussion
+
+
+ */
+- (void)enable;
 
 /*!
  @method
@@ -598,6 +672,7 @@
  your code.
  */
 @protocol MixpanelDelegate <NSObject>
+
 @optional
 
 /*!
