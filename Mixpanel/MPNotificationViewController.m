@@ -144,7 +144,11 @@
     return UIStatusBarAnimationFade;
 }
 
+#if __IPHONE_OS_VERSION_MAX_ALLOWED < 90000
 - (NSUInteger)supportedInterfaceOrientations
+#else
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations
+#endif
 {
     return UIInterfaceOrientationMaskPortrait;
 }
