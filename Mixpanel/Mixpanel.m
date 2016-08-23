@@ -35,6 +35,9 @@
 #define MixpanelDebug(...)
 #endif
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 @interface Mixpanel () <UIAlertViewDelegate, MPSurveyNavigationControllerDelegate, MPNotificationViewControllerDelegate> {
     NSUInteger _flushInterval;
 }
@@ -1566,3 +1569,5 @@ static Mixpanel *sharedInstance = nil;
 }
 
 @end
+
+#pragma clang diagnostic pop

@@ -11,6 +11,8 @@
 
 #define MPNotifHeight 65.0f
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 @interface CircleLayer : CALayer {}
 
@@ -700,3 +702,5 @@
 }
 
 @end
+
+#pragma clang diagnostic pop

@@ -4,6 +4,9 @@
 
 #import "MPNotification.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 @interface MPNotification ()
 
 - (id)initWithID:(NSUInteger)ID messageID:(NSUInteger)messageID type:(NSString *)type title:(NSString *)title body:(NSString *)body callToAction:(NSString *)callToAction callToActionURL:(NSURL *)callToActionURL imageURL:(NSURL *)imageURL;
@@ -157,3 +160,5 @@ NSString *const MPNotificationTypeTakeover = @"takeover";
 }
 
 @end
+
+#pragma clang diagnostic pop
